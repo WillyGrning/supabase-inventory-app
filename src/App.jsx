@@ -49,6 +49,8 @@ class SupabaseClient {
     const res = await fetch(`${this.url}${endpoint}`, {
       ...options,
       headers
+      // mode: 'cors',
+      // credentials: 'include'
     });
 
     const data = await res.json();

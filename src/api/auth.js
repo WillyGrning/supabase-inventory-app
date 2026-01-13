@@ -95,3 +95,96 @@ export async function googleLogin(idToken) {
 
   return data;
 }
+
+// ========== FORGOT PASSWORD API FUNCTIONS ==========
+
+export async function forgotPasswordApi(email) {
+  try {
+    const response = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ email })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to send reset code');
+    }
+    
+    return data;
+    
+  } catch (err) {
+    console.error('Forgot password API error:', err);
+    throw new Error(err.message || 'Failed to send reset code');
+  }
+}
+
+export async function verifyResetOtpApi(email, code) {
+  try {
+    const response = await fetch('/api/auth/verify-reset-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Invalid reset code');
+    }
+    
+    return data;
+    
+  } catch (err) {
+    console.error('Verify reset OTP API error:', err);
+    throw new Error(err.message || 'Invalid reset code');
+  }
+}
+
+export async function resetPasswordApi(resetToken, newPassword) {
+  try {
+    const response = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resetToken, newPassword })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to reset password');
+    }
+    
+    return data;
+    
+  } catch (err) {
+    console.error('Reset password API error:', err);
+    throw new Error(err.message || 'Failed to reset password');
+  }
+}
+
+export async function resendResetOtpApi(email) {
+  try {
+    const response = await fetch('/api/auth/resend-reset-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to resend code');
+    }
+    
+    return data;
+    
+  } catch (err) {
+    console.error('Resend reset OTP API error:', err);
+    throw new Error(err.message || 'Failed to resend code');
+  }
+}

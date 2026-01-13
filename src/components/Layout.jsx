@@ -26,7 +26,7 @@ export default function Layout({ children }) {
   const location = useLocation();
 
   // Pages where we don't want the header/footer
-  const noLayoutPages = ["/login", "/register", "/verify-otp", "/auth/callback"];
+  const noLayoutPages = ["/login", "/register", "/verify-otp", "/auth/callback", "/forgot-password"];
   const shouldShowLayout = !noLayoutPages.includes(location.pathname);
 
   // Fetch user data on component mount and route change

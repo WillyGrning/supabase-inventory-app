@@ -7,12 +7,16 @@ import {
   HashtagIcon,
   CurrencyDollarIcon,
   ExclamationCircleIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 
 export default function AddProductModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [categories, setCategories] = useState([]);
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
@@ -45,6 +49,54 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }) {
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      setError("Category name is required");
+      return;
+    }
+
+    setCreatingCategory(true);
+    setError("");
+
+    try {
+      const token = sessionStorage.getItem("session");
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newCategoryName,
+          description: "",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create category");
+      }
+
+      // Add new category to list
+      setCategories((prev) => [...prev, data.data]);
+
+      // Select the new category
+      setFormData((prev) => ({
+        ...prev,
+        category_id: data.data.id,
+      }));
+
+      // Reset and hide form
+      setNewCategoryName("");
+      setShowNewCategory(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreatingCategory(false);
     }
   };
 
@@ -224,25 +276,102 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }) {
 
               {/* Category */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <div className="flex items-center">
-                    <TagIcon className="h-4 w-4 mr-1 text-gray-400" />
-                    Category
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    <div className="flex items-center">
+                      <TagIcon className="h-4 w-4 mr-1 text-gray-400" />
+                      Category
+                    </div>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCategory(!showNewCategory)}
+                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
+                  >
+                    {showNewCategory ? (
+                      <>
+                        <ChevronDownIcon className="h-3 w-3 mr-1 rotate-180" />
+                        Choose Existing
+                      </>
+                    ) : (
+                      <>
+                        <PlusIcon className="h-3 w-3 mr-1" />
+                        Create New
+                      </>
+                    )}
+                  </button>
+                </div>
+                {showNewCategory ? (
+                  <div className="space-y-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Enter new category name"
+                        className="flex-1 px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={creatingCategory || !newCategoryName.trim()}
+                        className="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {creatingCategory ? "Creating..." : "Add"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-blue-600">
+                      This category will be saved and available for future
+                      products
+                    </p>
                   </div>
-                </label>
-                <select
-                  name="category_id"
-                  value={formData.category_id}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
+                ) : (
+                  <div className="relative">
+                    <select
+                      name="category_id"
+                      value={formData.category_id}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white"
+                    >
+                      <option value="">Select a category (optional)</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {categories.slice(0, 5).map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          category_id: category.id,
+                        }))
+                      }
+                      className={`px-2 py-1 text-xs rounded-full border ${
+                        formData.category_id === category.id
+                          ? "bg-blue-100 text-blue-800 border-blue-300"
+                          : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                      }`}
+                    >
                       {category.name}
-                    </option>
+                    </button>
                   ))}
-                </select>
+                  {categories.length > 5 && (
+                    <span className="px-2 py-1 text-xs text-gray-500">
+                      +{categories.length - 5} more
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Stock Information */}

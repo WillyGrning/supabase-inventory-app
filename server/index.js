@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
+import { OAuth2Client } from "google-auth-library";
 
 dotenv.config();
 
@@ -60,6 +61,191 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// Google OAuth Client
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.NODE_ENV === "production"
+    ? process.env.GOOGLE_REDIRECT_URI
+    : "http://localhost:3001/api/auth/callback/google"
+);
+
+// Google Login URL endpoint
+app.get("/api/auth/google", (req, res) => {
+  const url = googleClient.generateAuthUrl({
+    access_type: "offline",
+    scope: [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+    ],
+    prompt: "select_account",
+  });
+
+  res.json({ url });
+});
+
+// Google Callback endpoint
+app.get("/api/auth/callback/google", async (req, res) => {
+  try {
+    const { code } = req.query;
+
+    if (!code) {
+      return res.status(400).json({ error: "Authorization code required" });
+    }
+
+    // Exchange code for tokens
+    const { tokens } = await googleClient.getToken(code);
+    googleClient.setCredentials(tokens);
+
+    // Get user info from Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+
+    console.log(`🔑 Google login attempt: ${email}`);
+
+    // Check if user exists
+    let { data: user } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
+
+    // Create user if doesn't exist
+    if (!user) {
+      const { data: newUser, error: userError } = await supabase
+        .from("users")
+        .insert({
+          email,
+          name: name || email.split("@")[0],
+          google_id: googleId,
+          verified: true, // Google users are automatically verified
+          avatar_url: picture,
+          role: "user",
+          login_method: "google",
+        })
+        .select()
+        .single();
+
+      if (userError) throw userError;
+      user = newUser;
+
+      console.log(`✅ New user created via Google: ${email}`);
+    } else {
+      // Update existing user with Google info
+      await supabase
+        .from("users")
+        .update({
+          google_id: googleId,
+          avatar_url: picture,
+          verified: true,
+        })
+        .eq("id", user.id);
+
+      console.log(`✅ Existing user logged in via Google: ${email}`);
+    }
+
+    // Create session token
+    const token = generateSessionToken();
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await supabase.from("sessions").insert({
+      user_id: user.id,
+      token,
+      expires_at: expires,
+    });
+
+    // Redirect to frontend with token
+    const redirectUrl = `${
+      process.env.FRONTEND_URL || "http://localhost:5173"
+    }/auth/callback?token=${token}&email=${encodeURIComponent(email)}`;
+
+    res.redirect(redirectUrl);
+  } catch (error) {
+    console.error("Google OAuth error:", error);
+    res.redirect(
+      `${
+        process.env.FRONTEND_URL || "http://localhost:5173"
+      }/login?error=google_auth_failed`
+    );
+  }
+});
+
+// Google Login endpoint (for mobile/desktop)
+app.post("/api/auth/google/login", async (req, res) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ error: "ID token required" });
+    }
+
+    // Verify ID token
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+
+    // Same logic as callback endpoint
+    let { data: user } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
+
+    if (!user) {
+      const { data: newUser, error: userError } = await supabase
+        .from("users")
+        .insert({
+          email,
+          name: name || email.split("@")[0],
+          google_id: googleId,
+          verified: true,
+          avatar_url: picture,
+          role: "user",
+          login_method: "google",
+        })
+        .select()
+        .single();
+
+      if (userError) throw userError;
+      user = newUser;
+    }
+
+    // Create session
+    const token = generateSessionToken();
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await supabase.from("sessions").insert({
+      user_id: user.id,
+      token,
+      expires_at: expires,
+    });
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar_url,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Google login error:", error);
+    res.status(401).json({ error: "Google authentication failed" });
+  }
+});
+
 // Register endpoint
 app.post("/api/auth/register", async (req, res) => {
   try {
@@ -82,6 +268,7 @@ app.post("/api/auth/register", async (req, res) => {
         password_hash: hash,
         verified: false,
         role: "user",
+        login_method: "email",
       })
       .select()
       .single();
@@ -108,6 +295,7 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(500).json({ error: "Failed to create OTP" });
     }
 
+    // 4. Send OTP via email
     const fromName =
       process.env.SMTP_FROM_NAME || "Inventory Management System";
     const fromEmail = process.env.SMTP_FROM_EMAIL;
@@ -130,7 +318,6 @@ app.post("/api/auth/register", async (req, res) => {
       });
     }
 
-    // Production mode - send actual email
     // Production mode - send actual email
     try {
       await transporter.sendMail({
@@ -240,6 +427,8 @@ app.post("/api/auth/login", async (req, res) => {
     const token = generateSessionToken();
     const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
+    await supabase.from("sessions").delete().eq("user_id", user.id);
+
     const { error: sessionError } = await supabase.from("sessions").insert({
       user_id: user.id,
       token: token,
@@ -285,7 +474,7 @@ app.get("/api/admin/users", async (req, res) => {
       .select("user_id")
       .eq("token", token)
       .gt("expires_at", new Date().toISOString())
-      .single();
+      .maybeSingle();
 
     if (!session) return res.status(401).json({ error: "Session expired" });
 
@@ -363,7 +552,7 @@ app.get("/api/admin/users/:id", async (req, res) => {
       .select("user_id")
       .eq("token", token)
       .gt("expires_at", new Date().toISOString())
-      .single();
+      .maybeSingle();
 
     if (!session) return res.status(401).json({ error: "Session expired" });
 
@@ -930,6 +1119,8 @@ app.get("/api/products/:id", async (req, res) => {
 // GET all categories
 app.get("/api/categories", async (req, res) => {
   try {
+    console.log("AUTH HEADER:", req.headers.authorization);
+
     // Auth check
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
@@ -943,7 +1134,7 @@ app.get("/api/categories", async (req, res) => {
       .select("user_id")
       .eq("token", token)
       .gt("expires_at", new Date().toISOString())
-      .single();
+      .maybeSingle();
 
     if (!session) return res.status(401).json({ error: "Session expired" });
 
@@ -996,7 +1187,7 @@ app.post("/api/categories", async (req, res) => {
       .select("user_id")
       .eq("token", token)
       .gt("expires_at", new Date().toISOString())
-      .single();
+      .maybeSingle();
 
     if (!session) return res.status(401).json({ error: "Session expired" });
 

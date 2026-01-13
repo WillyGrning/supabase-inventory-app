@@ -10,7 +10,7 @@ export default function DeleteProductModal({ product, onClose, onSuccess }) {
     setError('');
 
     try {
-      const token = localStorage.getItem('session');
+      const token = sessionStorage.getItem('session');
       const response = await fetch(`/api/products/${product.id}`, {
         method: 'DELETE',
         headers: {

@@ -25,7 +25,7 @@ export async function getUsers() {
 }
 
 export async function getUserDetails(userId) {
-  const token = localStorage.getItem('session');
+  const token = sessionStorage.getItem('session');
   
   const response = await fetch(`/api/admin/users/${userId}`, {
     method: 'GET',

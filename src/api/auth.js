@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 // // ❌ HAPUS INI SEMUA:
 // // import { register, login } from '../server/auth.service.js';
 // // import { createOtp } from '../server/otp.service.js';
@@ -192,7 +191,7 @@
 
 
 // ✅ TAMBAHKAN INI DI ATAS:
-const API_URL = process.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 // ❌ JANGAN PAKAI PATH RELATIF:
 // fetch("/api/auth/google") 

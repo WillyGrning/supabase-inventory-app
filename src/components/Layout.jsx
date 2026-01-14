@@ -58,6 +58,7 @@ export default function Layout({ children }) {
 
       // Ambil data user dari API
       const response = await fetch(`${API_URL}/api/auth/me`, {
+      // const response = await await fetch("/api/auth/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -17,8 +17,11 @@ app.use(cors());
 app.use(express.json());
 
 // Supabase client
-const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY } =
-  process.env;
+const {
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
+} = process.env;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("❌ Missing Supabase environment variables");

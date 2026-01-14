@@ -16,6 +16,8 @@ import {
   ChartPieIcon,
 } from "@heroicons/react/24/outline";
 
+const API_URL = import.meta.env.VITE_API_URL
+
 export default function Layout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -55,7 +57,7 @@ export default function Layout({ children }) {
       }
 
       // Ambil data user dari API
-      const response = await fetch("/api/auth/me", {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

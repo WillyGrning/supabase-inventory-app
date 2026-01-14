@@ -21,7 +21,7 @@ const {
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
   VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
-} = import.meta.env;
+} = process.env;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("❌ Missing Supabase environment variables");
@@ -39,12 +39,12 @@ export const supabaseAdmin = createClient(
 
 // ========== EMAIL TRANSPORTER ========== // <-- TAMBAH INI
 const transporter = nodemailer.createTransport({
-  host: import.meta.env.SMTP_HOST || "smtp.gmail.com",
-  port: import.meta.env.SMTP_PORT || 587,
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: process.env.SMTP_PORT || 587,
   secure: false,
   auth: {
-    user: import.meta.env.SMTP_USER,
-    pass: import.meta.env.SMTP_PASS,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
@@ -79,10 +79,10 @@ app.get("/api/health", (req, res) => {
 
 // Google OAuth Client
 const googleClient = new OAuth2Client(
-  import.meta.env.GOOGLE_CLIENT_ID,
-  import.meta.env.GOOGLE_CLIENT_SECRET,
-  import.meta.env.NODE_ENV === "production"
-    ? import.meta.env.GOOGLE_REDIRECT_URI
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.NODE_ENV === "production"
+    ? process.env.GOOGLE_REDIRECT_URI
     : "http://localhost:3001/api/auth/callback/google"
 );
 
@@ -116,7 +116,7 @@ app.get("/api/auth/callback/google", async (req, res) => {
     // Get user info from Google
     const ticket = await googleClient.verifyIdToken({
       idToken: tokens.id_token,
-      audience: import.meta.env.GOOGLE_CLIENT_ID,
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
@@ -177,7 +177,7 @@ app.get("/api/auth/callback/google", async (req, res) => {
 
     // Redirect to frontend with token
     const redirectUrl = `${
-      import.meta.env.FRONTEND_URL || "http://localhost:5173"
+      process.env.FRONTEND_URL || "http://localhost:5173"
     }/auth/callback?token=${token}&email=${encodeURIComponent(email)}`;
 
     res.redirect(redirectUrl);
@@ -185,7 +185,7 @@ app.get("/api/auth/callback/google", async (req, res) => {
     console.error("Google OAuth error:", error);
     res.redirect(
       `${
-        import.meta.env.FRONTEND_URL || "http://localhost:5173"
+        process.env.FRONTEND_URL || "http://localhost:5173"
       }/login?error=google_auth_failed`
     );
   }
@@ -203,7 +203,7 @@ app.post("/api/auth/google/login", async (req, res) => {
     // Verify ID token
     const ticket = await googleClient.verifyIdToken({
       idToken,
-      audience: import.meta.env.GOOGLE_CLIENT_ID,
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
@@ -313,10 +313,10 @@ app.post("/api/auth/register", async (req, res) => {
 
     // 4. Send OTP via email
     const fromName =
-      import.meta.env.SMTP_FROM_NAME || "Inventory Management System";
-    const fromEmail = import.meta.env.SMTP_FROM_EMAIL;
+      process.env.SMTP_FROM_NAME || "Inventory Management System";
+    const fromEmail = process.env.SMTP_FROM_EMAIL;
 
-    if (!import.meta.env.SMTP_USER || import.meta.env.NODE_ENV === "development") {
+    if (!process.env.SMTP_USER || process.env.NODE_ENV === "development") {
       // Development mode
       console.log(`🔐 [DEV] OTP for ${email}: ${otp}`);
       console.log(`   From: "${fromName}" <${fromEmail}>`);
@@ -1560,13 +1560,13 @@ app.post("/api/auth/send-otp", async (req, res) => {
 
     // Customize sender name
     const fromName =
-      import.meta.env.SMTP_FROM_NAME || "Inventory Management System";
-    const fromEmail = import.meta.env.SMTP_FROM_EMAIL || import.meta.env.SMTP_USER;
+      process.env.SMTP_FROM_NAME || "Inventory Management System";
+    const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
     console.log(`📧 Attempting to send OTP to: ${email}`);
 
     // Check if email is configured
-    if (!import.meta.env.SMTP_USER || import.meta.env.NODE_ENV === "development") {
+    if (!process.env.SMTP_USER || process.env.NODE_ENV === "development") {
       // Development mode - simulate email
       console.log(`🔐 [DEV] OTP for ${email}: ${otp}`);
       console.log(`   From: "${fromName}" <${fromEmail}>`);
@@ -1859,10 +1859,10 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 
     // 6. Send OTP via email
     const fromName =
-      import.meta.env.SMTP_FROM_NAME || "Inventory Management System";
-    const fromEmail = import.meta.env.SMTP_FROM_EMAIL || import.meta.env.SMTP_USER;
+      process.env.SMTP_FROM_NAME || "Inventory Management System";
+    const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
-    if (import.meta.env.SMTP_USER && import.meta.env.SMTP_PASS) {
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         await transporter.sendMail({
           from: `"${fromName}" <${fromEmail}>`,
@@ -1938,7 +1938,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       success: true,
       message: "Reset code sent to your email",
       email: email,
-      otp: import.meta.env.NODE_ENV === "development" ? otp : undefined,
+      otp: process.env.NODE_ENV === "development" ? otp : undefined,
     });
   } catch (error) {
     console.error("Forgot password error:", error);
@@ -2135,7 +2135,7 @@ app.post("/api/auth/resend-reset-otp", async (req, res) => {
     res.json({
       success: true,
       message: "New reset code sent",
-      otp: import.meta.env.NODE_ENV === "development" ? otp : undefined,
+      otp: process.env.NODE_ENV === "development" ? otp : undefined,
     });
   } catch (error) {
     console.error("Resend reset OTP error:", error);
@@ -2164,7 +2164,7 @@ app.post("/api/auth/logout", async (req, res) => {
 });
 
 // ========== START SERVER ==========
-const PORT = import.meta.env.PORT || 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Backend API running on http://localhost:${PORT}`);
   console.log(`📋 Available endpoints:`);

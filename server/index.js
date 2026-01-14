@@ -17,14 +17,21 @@ app.use(cors());
 app.use(express.json());
 
 // Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY } =
+  process.env;
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("❌ Missing Supabase environment variables");
+  process.exit(1);
+}
+
+// Public client (user-context)
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Admin client (server-only, bypass RLS)
+export const supabaseAdmin = createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY
 );
 
 // ========== EMAIL TRANSPORTER ========== // <-- TAMBAH INI

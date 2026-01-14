@@ -12,6 +12,5 @@ export default defineConfig({
         secure: false,
       }
     }
-  },
-  base: '/supabase-inventory-app/',
+  }
 })

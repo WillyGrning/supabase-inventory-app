@@ -8,6 +8,8 @@ import Layout from './components/Layout';
 import Users from './pages/Users';
 import AuthCallback from './pages/AuthCallback';
 import ForgotPassword from './pages/ForgotPassword';
+import Analytics from './pages/Analytics';
+import System from './pages/System';
 
 export default function App() {
   return (
@@ -33,6 +35,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Users />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute>
+                <Analytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/system"
+            element={
+              <ProtectedRoute>
+                <System />
               </ProtectedRoute>
             }
           />

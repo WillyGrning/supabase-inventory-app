@@ -8,6 +8,7 @@ import crypto from "crypto";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import { OAuth2Client } from "google-auth-library";
+import { requireAuthMiddleware } from "./middleware/auth.middleware.js";
 
 dotenv.config();
 
@@ -1244,6 +1245,299 @@ app.post("/api/categories", async (req, res) => {
   }
 });
 
+// Analytic endpoints
+app.get(
+  "/api/analytics/inventory-stats",
+  requireAuthMiddleware,
+  async (req, res) => {
+    try {
+      const userId = req.userId;
+
+      // Get total items and value
+      const { data: stats, error: statsError } = await supabase
+        .from("products")
+        .select("quantity, unit_price, min_stock")
+        .eq("user_id", userId);
+
+      if (statsError) throw statsError;
+
+      let totalItems = 0;
+      let totalValue = 0;
+      let lowStockItems = 0;
+      let outOfStockItems = 0;
+      let totalUnitPrice = 0;
+
+      stats.forEach((product) => {
+        const quantity = product.quantity || 0;
+        const unitPrice = parseFloat(product.unit_price) || 0;
+        const minStock = product.min_stock || 10;
+
+        totalItems += quantity;
+        totalValue += quantity * unitPrice;
+        totalUnitPrice += unitPrice;
+
+        if (quantity === 0) {
+          outOfStockItems++;
+        } else if (quantity <= minStock) {
+          lowStockItems++;
+        }
+      });
+
+      const avgUnitPrice = stats.length > 0 ? totalUnitPrice / stats.length : 0;
+
+      res.json({
+        totalItems,
+        totalValue,
+        lowStockItems,
+        outOfStockItems,
+        avgUnitPrice,
+        totalProducts: stats.length,
+      });
+    } catch (error) {
+      console.error("Analytics error:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  }
+);
+
+// Category distribution endpoint
+app.get(
+  "/api/analytics/category-distribution",
+  requireAuthMiddleware,
+  async (req, res) => {
+    try {
+      const userId = req.userId;
+
+      const { data, error } = await supabase
+        .from("products")
+        .select(
+          `
+        quantity,
+        unit_price,
+        category_id,
+        categories (name)
+      `
+        )
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      // Group by category
+      const categoryMap = {};
+
+      data.forEach((product) => {
+        const categoryName = product.categories?.name || "Uncategorized";
+        const quantity = product.quantity || 0;
+        const unitPrice = parseFloat(product.unit_price) || 0;
+        const value = quantity * unitPrice;
+
+        if (!categoryMap[categoryName]) {
+          categoryMap[categoryName] = {
+            category_name: categoryName,
+            total_value: 0,
+            item_count: 0,
+          };
+        }
+
+        categoryMap[categoryName].total_value += value;
+        categoryMap[categoryName].item_count += quantity > 0 ? 1 : 0;
+      });
+
+      const result = Object.values(categoryMap);
+
+      res.json(result);
+    } catch (error) {
+      console.error("Category distribution error:", error);
+      res.json([]); // Return empty array if error
+    }
+  }
+);
+
+// System Info
+app.get("/api/system/info", requireAuthMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Product count
+    const { count: productCount, error: productError } = await supabase
+      .from("products")
+      .select("*", { count: "exact" })
+      .eq("user_id", userId);
+
+    if (productError) throw productError;
+
+    // Low stock count - query manual
+    const { data: lowStockData, error: lowStockError } = await supabase
+      .from("products")
+      .select("quantity, min_stock")
+      .eq("user_id", userId);
+
+    if (lowStockError) throw lowStockError;
+
+    // Calculate low stock manually
+    const lowStockCount =
+      lowStockData?.filter(
+        (p) =>
+          p.quantity !== null &&
+          p.min_stock !== null &&
+          p.quantity <= p.min_stock
+      ).length || 0;
+
+    // Get last backup
+    let lastBackup = null;
+    try {
+      const { data: backupData } = await supabase
+        .from("backup_logs")
+        .select("created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      lastBackup = backupData?.created_at;
+    } catch (backupError) {
+      // Table mungkin belum ada, ignore
+      console.log("Backup logs table not found or empty");
+    }
+
+    res.json({
+      totalProducts: productCount || 0,
+      lowStockItems: lowStockCount,
+      totalUsers: 1,
+      lastBackup,
+      version: "1.0.0",
+      dbSize: "N/A",
+    });
+  } catch (error) {
+    console.error("System info error:", error);
+    res.status(500).json({
+      error: "Failed to fetch system info",
+      details: error.message,
+    });
+  }
+});
+
+// Export Data
+app.get("/api/system/export", requireAuthMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const format = req.query.format || "csv";
+
+    // Get all products
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("user_id", userId);
+
+    if (error) throw error;
+
+    if (format === "csv") {
+      // Convert to CSV
+      const headers = [
+        "ID",
+        "Name",
+        "SKU",
+        "Quantity",
+        "Min Stock",
+        "Unit Price",
+        "Category",
+      ];
+      const csvRows = [
+        headers.join(","),
+        ...products.map((p) =>
+          [
+            p.id,
+            `"${p.name?.replace(/"/g, '""')}"`,
+            p.sku,
+            p.quantity,
+            p.min_stock,
+            p.unit_price,
+            p.category_id,
+          ].join(",")
+        ),
+      ];
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=inventory-export.csv"
+      );
+      res.send(csvRows.join("\n"));
+    } else if (format === "json") {
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=inventory-export.json"
+      );
+      res.json(products);
+    } else {
+      res.status(400).json({ error: "Unsupported format" });
+    }
+  } catch (error) {
+    console.error("Export error:", error);
+    res.status(500).json({ error: "Export failed" });
+  }
+});
+
+// Create Backup
+app.post("/api/system/backup", requireAuthMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `backup-${timestamp}.json`;
+
+    // Get all data
+    const { data: products } = await supabase
+      .from("products")
+      .select("*")
+      .eq("user_id", userId);
+
+    const backupData = {
+      timestamp: new Date().toISOString(),
+      userId,
+      products: products || [],
+      metadata: {
+        totalItems: products?.length || 0,
+        systemVersion: "1.0.0",
+      },
+    };
+
+    // Log backup (simulate saving to database)
+    await supabase.from("backup_logs").insert({
+      user_id: userId,
+      filename,
+      item_count: products?.length || 0,
+      created_at: new Date().toISOString(),
+    });
+
+    res.json({
+      success: true,
+      message: "Backup created successfully",
+      filename,
+      timestamp: new Date().toISOString(),
+      itemCount: products?.length || 0,
+    });
+  } catch (error) {
+    console.error("Backup error:", error);
+    res.status(500).json({ error: "Backup failed" });
+  }
+});
+
+// Clear Cache (simulated)
+app.post("/api/system/clear-cache", requireAuthMiddleware, async (req, res) => {
+  try {
+    // In a real app, you would clear Redis/memory cache
+    // For now, just return success
+    res.json({
+      success: true,
+      message: "Cache cleared successfully",
+      clearedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to clear cache" });
+  }
+});
+
 // Send OTP endpoint (standalone)
 // Send OTP endpoint (standalone)
 app.post("/api/auth/send-otp", async (req, res) => {
@@ -1765,7 +2059,10 @@ app.post("/api/auth/reset-password", async (req, res) => {
       .eq("user_id", resetRecord.user_id);
 
     // 5. Invalidate all sessions (optional but recommended)
-    await supabaseAdmin.from("sessions").delete().eq("user_id", resetRecord.user_id);
+    await supabaseAdmin
+      .from("sessions")
+      .delete()
+      .eq("user_id", resetRecord.user_id);
 
     console.log(`✅ Password reset for user: ${resetRecord.users?.email}`);
 

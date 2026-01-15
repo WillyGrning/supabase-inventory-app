@@ -1600,7 +1600,7 @@ async function sendEmailWithResend(options) {
     const { to, subject, html, text } = options;
     const fromName =
       process.env.SMTP_FROM_NAME || "Inventory Management System";
-    const fromEmail = process.env.SMTP_FROM_EMAIL || "onboarding@resend.dev";
+    const fromEmail = "onboarding@resend.dev";
 
     console.log(`📧 [Resend] Sending email to: ${to}`);
 

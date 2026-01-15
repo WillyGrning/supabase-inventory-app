@@ -1,13 +1,14 @@
 // Frontend API calls for users management
 
 export async function getUsers() {
+  const API_URL = import.meta.env.VITE_API_URL;
   const token = sessionStorage.getItem('session');
   
   if (!token) {
     throw new Error('No authentication token found');
   }
   
-  const response = await fetch('/api/admin/users', {
+  const response = await fetch(`${API_URL}/api/admin/users`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -25,9 +26,10 @@ export async function getUsers() {
 }
 
 export async function getUserDetails(userId) {
+  const API_URL = import.meta.env.VITE_API_URL;
   const token = sessionStorage.getItem('session');
   
-  const response = await fetch(`/api/admin/users/${userId}`, {
+  const response = await fetch(`${API_URL}/api/admin/users/${userId}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`

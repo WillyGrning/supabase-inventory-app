@@ -22,7 +22,7 @@ const {
   SUPABASE_SERVICE_ROLE_KEY,
   VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
 } = process.env;
-
+api
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("❌ Missing Supabase environment variables");
   process.exit(1);

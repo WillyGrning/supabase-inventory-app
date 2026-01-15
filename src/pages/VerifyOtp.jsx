@@ -8,6 +8,8 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function VerifyOtp() {
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -111,7 +113,7 @@ export default function VerifyOtp() {
     setSuccess('');
     
     try {
-      const response = await fetch('/api/auth/verify-otp', {
+      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code: otp })
@@ -150,7 +152,7 @@ export default function VerifyOtp() {
     setError('');
     
     try {
-      const response = await fetch('/api/auth/resend-otp', {
+      const response = await fetch(`${API_URL}/api/auth/resend-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

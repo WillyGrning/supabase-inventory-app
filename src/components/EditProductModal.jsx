@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function EditProductModal({ product, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     name: product.name,
@@ -23,7 +25,7 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
   const fetchCategories = async () => {
     try {
       const token = sessionStorage.getItem('session');
-      const response = await fetch('/api/categories', {
+      const response = await fetch(`${API_URL}/api/categories`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -54,7 +56,7 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
 
     try {
       const token = sessionStorage.getItem('session');
-      const response = await fetch(`/api/products/${product.id}`, {
+      const response = await fetch(`${API_URL}/api/products/${product.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

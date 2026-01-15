@@ -43,6 +43,7 @@ const StatCard = ({ title, value, change, icon: Icon, color, subtitle }) => (
 );
 
 export default function Analytics() {
+  const API_URL = import.meta.env.VITE_API_URL;
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [categoryData, setCategoryData] = useState([]);
@@ -53,7 +54,7 @@ export default function Analytics() {
       const token = sessionStorage.getItem('session');
       
       // Fetch inventory stats
-      const statsResponse = await fetch('/api/analytics/inventory-stats', {
+      const statsResponse = await fetch(`${API_URL}/api/analytics/inventory-stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -63,7 +64,7 @@ export default function Analytics() {
       const statsData = await statsResponse.json();
       
       // Fetch category distribution
-      const categoryResponse = await fetch('/api/analytics/category-distribution', {
+      const categoryResponse = await fetch(`${API_URL}/api/analytics/category-distribution`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -72,7 +73,7 @@ export default function Analytics() {
       const categoryData = categoryResponse.ok ? await categoryResponse.json() : [];
       
       // Fetch low stock products
-      const lowStockResponse = await fetch('/api/products?low_stock=true&limit=10', {
+      const lowStockResponse = await fetch(`${API_URL}/api/products?low_stock=true&limit=10`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }

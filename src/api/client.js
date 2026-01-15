@@ -1,5 +1,6 @@
 // API client dengan auth header otomatis
 export async function apiClient(endpoint, options = {}) {
+  const API_URL = import.meta.env.VITE_API_URL;
   const token = sessionStorage.getItem("session");
   
   const headers = {
@@ -14,7 +15,7 @@ export async function apiClient(endpoint, options = {}) {
     headers,
   };
 
-  const response = await fetch(`/api${endpoint}`, config);
+  const response = await fetch(`${API_URL}/api${endpoint}`, config);
   
   if (response.status === 401) {
     // Token expired, redirect to login

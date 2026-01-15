@@ -10,6 +10,8 @@ import {
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function System() {
   const [loading, setLoading] = useState(false);
   const [exportFormat, setExportFormat] = useState("csv");
@@ -20,7 +22,7 @@ export default function System() {
   const fetchSystemInfo = async () => {
     try {
       const token = sessionStorage.getItem("session");
-      const response = await fetch("/api/system/info", {
+      const response = await fetch(`${API_URL}/api/system/info`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -67,7 +69,7 @@ export default function System() {
     try {
       const token = sessionStorage.getItem("session");
       const response = await fetch(
-        `/api/system/export?format=${exportFormat}`,
+        `${API_URL}/api/system/export?format=${exportFormat}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -106,7 +108,7 @@ export default function System() {
 
     try {
       const token = sessionStorage.getItem("session");
-      const response = await fetch("/api/system/backup", {
+      const response = await fetch(`${API_URL}/api/system/backup`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -144,7 +146,7 @@ export default function System() {
 
     try {
       const token = sessionStorage.getItem("session");
-      const response = await fetch("/api/system/clear-cache", {
+      const response = await fetch(`${API_URL}/api/system/clear-cache`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -168,7 +170,7 @@ export default function System() {
 
     try {
       const token = sessionStorage.getItem("session");
-      const response = await fetch("/api/products/low-stock?limit=50", {
+      const response = await fetch(`${API_URL}/api/products/low-stock?limit=50`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -205,7 +207,7 @@ export default function System() {
 
       // Fetch data
       const [productsRes, statsRes] = await Promise.all([
-        fetch("/api/products", {
+        fetch(`${API_URL}/api/products`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch("/api/analytics/inventory-stats", {

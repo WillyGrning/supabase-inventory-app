@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 export default function DeleteProductModal({ product, onClose, onSuccess }) {
+  const API_URL = import.meta.env.VITE_API_URL;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -11,7 +12,7 @@ export default function DeleteProductModal({ product, onClose, onSuccess }) {
 
     try {
       const token = sessionStorage.getItem('session');
-      const response = await fetch(`/api/products/${product.id}`, {
+      const response = await fetch(`${API_URL}/api/products/${product.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

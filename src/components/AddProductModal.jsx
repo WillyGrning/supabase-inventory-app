@@ -10,6 +10,8 @@ import {
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function AddProductModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,7 +39,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }) {
   const fetchCategories = async () => {
     try {
       const token = sessionStorage.getItem("session");
-      const response = await fetch("/api/categories", {
+      const response = await fetch(`${API_URL}/api/categories`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -63,7 +65,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }) {
 
     try {
       const token = sessionStorage.getItem("session");
-      const response = await fetch("/api/categories", {
+      const response = await fetch(`${API_URL}/api/categories`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -137,7 +139,7 @@ export default function AddProductModal({ isOpen, onClose, onSuccess }) {
         throw new Error("Price cannot be negative");
       }
 
-      const response = await fetch("/api/products", {
+      const response = await fetch(`${API_URL}/api/products`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

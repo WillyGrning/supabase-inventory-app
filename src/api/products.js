@@ -1,12 +1,13 @@
 // Frontend API call untuk products
 export async function getProducts() {
+  const API_URL = import.meta.env.VITE_API_URL;
   const token = sessionStorage.getItem('session');
   
   if (!token) {
     throw new Error('No authentication token found');
   }
   
-  const response = await fetch('/api/products', {
+  const response = await fetch(`${API_URL}/api/products`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,

@@ -101,7 +101,7 @@ export default function Layout({ children }) {
 
       // Optional: Call logout API to invalidate session server-side
       if (token) {
-        await fetch("/api/auth/logout", {
+        await fetch(`${API_URL}/api/auth/logout`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,

@@ -191,7 +191,7 @@
 
 
 // ✅ TAMBAHKAN INI DI ATAS:
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
 
 // ❌ JANGAN PAKAI PATH RELATIF:
 // fetch("/api/auth/google") 

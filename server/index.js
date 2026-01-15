@@ -179,7 +179,18 @@ app.get("/api/auth/callback/google", async (req, res) => {
     const redirectUrl = `${
       process.env.FRONTEND_URL || "http://localhost:5173"
     }/auth/callback?token=${token}&email=${encodeURIComponent(email)}`;
-
+    // Di Google callback, sebelum res.redirect():
+    console.log("=== GOOGLE AUTH REDIRECT ===");
+    console.log("Token:", token);
+    console.log("Email:", email);
+    console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
+    console.log(
+      "Redirect URL:",
+      `${
+        process.env.FRONTEND_URL
+      }/auth/callback?token=${token}&email=${encodeURIComponent(email)}`
+    );
+    console.log("=== END LOG ===");
     res.redirect(redirectUrl);
   } catch (error) {
     console.error("Google OAuth error:", error);

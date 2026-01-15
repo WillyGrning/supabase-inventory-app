@@ -6,7 +6,6 @@ import bcrypt from "bcryptjs";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
 import { OAuth2Client } from "google-auth-library";
 import { requireAuthMiddleware } from "./middleware/auth.middleware.js";
 import { Resend } from "resend";

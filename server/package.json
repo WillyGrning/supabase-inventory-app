@@ -19,7 +19,7 @@
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.562.0",
-    "nodemailer": "^7.0.12",
+    "resend": "^2.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-google-button": "^0.8.0",

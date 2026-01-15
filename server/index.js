@@ -9,8 +9,11 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import { OAuth2Client } from "google-auth-library";
 import { requireAuthMiddleware } from "./middleware/auth.middleware.js";
+import { Resend } from "resend";
 
 dotenv.config();
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
 app.use(cors());
@@ -38,24 +41,24 @@ export const supabaseAdmin = createClient(
 );
 
 // ========== EMAIL TRANSPORTER ========== // <-- TAMBAH INI
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   host: 'smtp-relay.brevo.com',
+//   port: 587,
+//   secure: false,
+//   auth: {
+//     user: process.env.SMTP_USER,
+//     pass: process.env.SMTP_PASS,
+//   },
+// });
 
-// Test connection
-transporter.verify((error) => {
-  if (error) {
-    console.log("❌ Email server error:", error.message);
-  } else {
-    console.log("✅ Email server is ready");
-  }
-});
+// // Test connection
+// transporter.verify((error) => {
+//   if (error) {
+//     console.log("❌ Email server error:", error.message);
+//   } else {
+//     console.log("✅ Email server is ready");
+//   }
+// });
 
 // Helper functions
 function generateSessionToken() {
@@ -322,15 +325,101 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(500).json({ error: "Failed to create OTP" });
     }
 
-    // 4. Send OTP via email
-    const fromName =
-      process.env.SMTP_FROM_NAME || "Inventory Management System";
-    const fromEmail = process.env.SMTP_FROM_EMAIL;
+    // // 4. Send OTP via email
+    // const fromName =
+    //   process.env.SMTP_FROM_NAME || "Inventory Management System";
+    // const fromEmail = process.env.SMTP_FROM_EMAIL;
 
-    if (!process.env.SMTP_USER || process.env.NODE_ENV === "development") {
-      // Development mode
+    // if (!process.env.SMTP_USER || process.env.NODE_ENV === "development") {
+    //   // Development mode
+    //   console.log(`🔐 [DEV] OTP for ${email}: ${otp}`);
+    //   console.log(`   From: "${fromName}" <${fromEmail}>`);
+
+    //   return res.json({
+    //     success: true,
+    //     message: "Registration successful! Check your email for OTP.",
+    //     user: {
+    //       id: user.id,
+    //       email: user.email,
+    //     },
+    //     otp: otp, // For development/testing only
+    //     simulated: true,
+    //     preview: `From: "${fromName}" <${fromEmail}>`,
+    //   });
+    // }
+
+    // // Production mode - send actual email
+    // try {
+    //   await transporter.sendMail({
+    //     from: `"${fromName}" <${fromEmail}>`,
+    //     to: email,
+    //     subject: `Your OTP Code - ${fromName}`,
+    //     text: `
+    //   Your OTP verification code is: ${otp}
+
+    //   Enter this code to verify your email address.
+    //   This code will expire in 10 minutes.
+
+    //   If you didn't request this code, please ignore this email.
+
+    //   Best regards,
+    //   ${fromName} Team
+    // `,
+    //     html: `
+    //   <!DOCTYPE html>
+    //   <html>
+    //   <head>
+    //     <meta charset="utf-8">
+    //     <style>
+    //       body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
+    //       .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white; }
+    //       .content { padding: 30px; background: #f9fafb; }
+    //       .otp-code { font-size: 32px; font-weight: bold; letter-spacing: 10px; text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; border: 2px dashed #e5e7eb; }
+    //       .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; }
+    //     </style>
+    //   </head>
+    //   <body>
+    //     <div class="header">
+    //       <h1>${fromName}</h1>
+    //       <p>Email Verification</p>
+    //     </div>
+    //     <div class="content">
+    //       <h2>Welcome!</h2>
+    //       <p>Thank you for registering. Use the following OTP code to verify your email address:</p>
+    //       <div class="otp-code">${otp}</div>
+    //       <p>This code will expire in <strong>10 minutes</strong>.</p>
+    //       <p>If you didn't request this code, please ignore this email.</p>
+    //       <p>Best regards,<br><strong>${fromName} Team</strong></p>
+    //     </div>
+    //     <div class="footer">
+    //       <p>This is an automated message, please do not reply.</p>
+    //       <p>&copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.</p>
+    //     </div>
+    //   </body>
+    //   </html>
+    // `,
+    //   });
+
+    //   console.log(`✅ Registration email sent to ${email}`);
+    // } catch (emailError) {
+    //   console.error("Email sending failed:", emailError);
+    //   // Continue anyway, OTP is saved in database
+    // }
+
+    // res.json({
+    //   success: true,
+    //   message: "Registration successful! Check your email for OTP.",
+    //   user: {
+    //     id: user.id,
+    //     email: user.email,
+    //   },
+    // });
+    // ✅ 4. Send OTP via Resend
+    const emailResult = await sendOtpEmail(email, otp, "verification");
+
+    // Untuk development atau jika Resend gagal
+    if (!emailResult.success || process.env.NODE_ENV === "development") {
       console.log(`🔐 [DEV] OTP for ${email}: ${otp}`);
-      console.log(`   From: "${fromName}" <${fromEmail}>`);
 
       return res.json({
         success: true,
@@ -339,70 +428,13 @@ app.post("/api/auth/register", async (req, res) => {
           id: user.id,
           email: user.email,
         },
-        otp: otp, // For development/testing only
-        simulated: true,
-        preview: `From: "${fromName}" <${fromEmail}>`,
+        otp: otp, // Kirim OTP untuk development
+        simulated: !emailResult.success,
+        emailSent: emailResult.success,
       });
     }
 
-    // Production mode - send actual email
-    try {
-      await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: `Your OTP Code - ${fromName}`,
-        text: `
-      Your OTP verification code is: ${otp}
-      
-      Enter this code to verify your email address.
-      This code will expire in 10 minutes.
-      
-      If you didn't request this code, please ignore this email.
-      
-      Best regards,
-      ${fromName} Team
-    `,
-        html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white; }
-          .content { padding: 30px; background: #f9fafb; }
-          .otp-code { font-size: 32px; font-weight: bold; letter-spacing: 10px; text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; border: 2px dashed #e5e7eb; }
-          .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>${fromName}</h1>
-          <p>Email Verification</p>
-        </div>
-        <div class="content">
-          <h2>Welcome!</h2>
-          <p>Thank you for registering. Use the following OTP code to verify your email address:</p>
-          <div class="otp-code">${otp}</div>
-          <p>This code will expire in <strong>10 minutes</strong>.</p>
-          <p>If you didn't request this code, please ignore this email.</p>
-          <p>Best regards,<br><strong>${fromName} Team</strong></p>
-        </div>
-        <div class="footer">
-          <p>This is an automated message, please do not reply.</p>
-          <p>&copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.</p>
-        </div>
-      </body>
-      </html>
-    `,
-      });
-
-      console.log(`✅ Registration email sent to ${email}`);
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError);
-      // Continue anyway, OTP is saved in database
-    }
-
+    // Jika email berhasil dikirim
     res.json({
       success: true,
       message: "Registration successful! Check your email for OTP.",
@@ -410,6 +442,7 @@ app.post("/api/auth/register", async (req, res) => {
         id: user.id,
         email: user.email,
       },
+      emailSent: true,
     });
   } catch (error) {
     console.error("Registration error:", error);
@@ -1561,6 +1594,142 @@ app.post("/api/system/clear-cache", requireAuthMiddleware, async (req, res) => {
 
 // Send OTP endpoint (standalone)
 // Send OTP endpoint (standalone)
+// ✅ FUNCTION UNTUK KIRIM EMAIL DENGAN RESEND
+// ✅ REUSABLE FUNCTION UNTUK KIRIM EMAIL DENGAN RESEND
+async function sendEmailWithResend(options) {
+  try {
+    const { to, subject, html, text } = options;
+    const fromName =
+      process.env.SMTP_FROM_NAME || "Inventory Management System";
+    const fromEmail = process.env.SMTP_FROM_EMAIL || "onboarding@resend.dev";
+
+    console.log(`📧 [Resend] Sending email to: ${to}`);
+
+    const { data, error } = await resend.emails.send({
+      from: `"${fromName}" <${fromEmail}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
+
+    if (error) {
+      console.error("❌ Resend error:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("✅ Email sent via Resend, ID:", data?.id);
+    return { success: true, data: data };
+  } catch (error) {
+    console.error("❌ Send email error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ✅ FUNCTION KHUSUS UNTUK OTP EMAIL
+async function sendOtpEmail(email, otp, type = "verification") {
+  const fromName = process.env.SMTP_FROM_NAME || "Inventory Management System";
+
+  const subject =
+    type === "verification"
+      ? `Your OTP Code - ${fromName}`
+      : `Password Reset Code - ${fromName}`;
+
+  const headerText =
+    type === "verification" ? "Email Verification" : "Password Reset Request";
+
+  const mainText =
+    type === "verification"
+      ? "Use the following OTP code to verify your email address:"
+      : "You requested to reset your password. Use this code:";
+
+  const actionText =
+    type === "verification"
+      ? "verify your email address"
+      : "reset your password";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
+        .header { 
+          background: ${
+            type === "verification"
+              ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+              : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+          }; 
+          padding: 30px; text-align: center; color: white; 
+        }
+        .content { padding: 30px; background: #f9fafb; }
+        .otp-code { 
+          font-size: 32px; 
+          font-weight: bold; 
+          letter-spacing: 10px; 
+          text-align: center; 
+          margin: 30px 0; 
+          padding: 20px; 
+          background: white; 
+          border-radius: 10px; 
+          border: 2px dashed #e5e7eb;
+          font-family: 'Courier New', monospace;
+        }
+        .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; }
+        .warning { 
+          background: #fef3c7; 
+          border-left: 4px solid #f59e0b; 
+          padding: 15px; 
+          margin: 20px 0; 
+          display: ${type === "verification" ? "none" : "block"};
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${fromName}</h1>
+        <p>${headerText}</p>
+      </div>
+      <div class="content">
+        <h2>Hello${type === "verification" ? "!" : ","}</h2>
+        <p>${mainText}</p>
+        
+        <div class="otp-code">${otp}</div>
+        
+        <p>Enter this code to ${actionText}.</p>
+        <p>This code will expire in <strong>10 minutes</strong>.</p>
+        
+        <div class="warning">
+          <p><strong>⚠️ Security Notice:</strong></p>
+          <p>If you didn't request a password reset, please ignore this email or contact support.</p>
+        </div>
+        
+        <p>If you didn't request this code, please ignore this email.</p>
+        <p>Best regards,<br><strong>${fromName} Team</strong></p>
+      </div>
+      <div class="footer">
+        <p>This is an automated message, please do not reply.</p>
+        <p>&copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const text =
+    type === "verification"
+      ? `Your OTP verification code is: ${otp}\n\nEnter this code to verify your email address.\nThis code will expire in 10 minutes.\n\nIf you didn't request this code, please ignore this email.\n\nBest regards,\n${fromName} Team`
+      : `Your password reset code is: ${otp}\n\nEnter this code to reset your password.\nThis code will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\n${fromName} Team`;
+
+  return await sendEmailWithResend({
+    to: email,
+    subject,
+    html,
+    text,
+  });
+}
+
+// ✅ PERBAIKAN ENDPOINT SEND OTP
 app.post("/api/auth/send-otp", async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -1569,88 +1738,30 @@ app.post("/api/auth/send-otp", async (req, res) => {
       return res.status(400).json({ error: "Email and OTP required" });
     }
 
-    // Customize sender name
-    const fromName =
-      process.env.SMTP_FROM_NAME || "Inventory Management System";
-    const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
-
     console.log(`📧 Attempting to send OTP to: ${email}`);
 
-    // Check if email is configured
-    if (!process.env.SMTP_USER || process.env.NODE_ENV === "development") {
-      // Development mode - simulate email
-      console.log(`🔐 [DEV] OTP for ${email}: ${otp}`);
-      console.log(`   From: "${fromName}" <${fromEmail}>`);
+    // ✅ GUNAKAN RESEND UNTUK SEMUA ENVIRONMENT
+    const emailResult = await sendOtpEmailResend(email, otp);
+
+    if (emailResult.success) {
+      // Email berhasil dikirim via Resend
+      return res.json({
+        success: true,
+        message: "OTP sent successfully",
+        messageId: emailResult.data?.id,
+      });
+    } else {
+      // Resend gagal, fallback ke development mode
+      console.log(`🔐 [FALLBACK] OTP for ${email}: ${otp}`);
 
       return res.json({
         success: true,
-        message: "OTP sent successfully (simulated for development)",
+        message: "OTP generated. Check console/logs for code.",
         simulated: true,
-        otp: otp,
-        preview: `From: "${fromName}" <${fromEmail}>`,
+        otp: otp, // Kirim OTP di response untuk development
+        error: emailResult.error, // Optional: kasih tahu error
       });
     }
-
-    // Production mode - send actual email
-    const mailOptions = {
-      from: `"${fromName}" <${fromEmail}>`,
-      to: email,
-      subject: `Your OTP Code - ${fromName}`,
-      text: `
-        Your OTP verification code is: ${otp}
-        
-        Enter this code to verify your email address.
-        This code will expire in 10 minutes.
-        
-        If you didn't request this code, please ignore this email.
-        
-        Best regards,
-        ${fromName} Team
-      `,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white; }
-            .content { padding: 30px; background: #f9fafb; }
-            .otp-code { font-size: 32px; font-weight: bold; letter-spacing: 10px; text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; border: 2px dashed #e5e7eb; }
-            .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>${fromName}</h1>
-            <p>Email Verification</p>
-          </div>
-          <div class="content">
-            <h2>Hello,</h2>
-            <p>Use the following OTP code to verify your email address:</p>
-            <div class="otp-code">${otp}</div>
-            <p>This code will expire in <strong>10 minutes</strong>.</p>
-            <p>If you didn't request this code, please ignore this email.</p>
-            <p>Best regards,<br><strong>${fromName} Team</strong></p>
-          </div>
-          <div class="footer">
-            <p>This is an automated message, please do not reply.</p>
-            <p>&copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.</p>
-          </div>
-        </body>
-        </html>
-      `,
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-
-    console.log(`✅ Email sent to ${email}: ${info.messageId}`);
-
-    res.json({
-      success: true,
-      message: "OTP sent successfully",
-      messageId: info.messageId,
-    });
   } catch (error) {
     console.error("❌ Email sending failed:", error.message);
     res.status(500).json({
@@ -1660,7 +1771,7 @@ app.post("/api/auth/send-otp", async (req, res) => {
   }
 });
 
-// Verify OTP endpoint
+// ✅ PERBAIKAN ENDPOINT VERIFY OTP (TETAP SAMA)
 app.post("/api/auth/verify-otp", async (req, res) => {
   try {
     const { email, code } = req.body;
@@ -1715,7 +1826,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
   }
 });
 
-// Tambah setelah verify-otp endpoint
+// ✅ PERBAIKAN ENDPOINT RESEND OTP
 app.post("/api/auth/resend-otp", async (req, res) => {
   try {
     const { email } = req.body;
@@ -1749,14 +1860,25 @@ app.post("/api/auth/resend-otp", async (req, res) => {
       expires_at: expires,
     });
 
-    // Simulate sending email
-    console.log(`📧 [RESEND] New OTP for ${email}: ${otp}`);
+    console.log(`📧 [RESEND] New OTP generated for ${email}: ${otp}`);
 
-    res.json({
-      success: true,
-      message: "OTP baru telah dikirim",
-      otp: otp, // For development
-    });
+    // ✅ GUNAKAN RESEND UNTUK KIRIM EMAIL
+    const emailResult = await sendOtpEmailResend(email, otp);
+
+    if (emailResult.success) {
+      return res.json({
+        success: true,
+        message: "New OTP has been sent to your email",
+      });
+    } else {
+      // Fallback jika Resend gagal
+      return res.json({
+        success: true,
+        message: "New OTP generated. Check logs for code.",
+        otp: otp, // Kirim OTP di response
+        error: emailResult.error,
+      });
+    }
   } catch (error) {
     console.error("Resend OTP error:", error);
     res.status(500).json({ error: "Server error" });
@@ -1868,88 +1990,112 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       return res.status(500).json({ error: "Failed to create reset code" });
     }
 
-    // 6. Send OTP via email
-    const fromName =
-      process.env.SMTP_FROM_NAME || "Inventory Management System";
-    const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
+    // // 6. Send OTP via email
+    // const fromName =
+    //   process.env.SMTP_FROM_NAME || "Inventory Management System";
+    // const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        await transporter.sendMail({
-          from: `"${fromName}" <${fromEmail}>`,
-          to: email,
-          subject: `Password Reset Code - ${fromName}`,
-          text: `
-            You requested to reset your password.
-            
-            Your password reset code is: ${otp}
-            
-            This code will expire in 10 minutes.
-            
-            If you didn't request this, please ignore this email.
-            
-            Best regards,
-            ${fromName} Team
-          `,
-          html: `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
-                .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; text-align: center; color: white; }
-                .content { padding: 30px; background: #f9fafb; }
-                .reset-code { font-size: 32px; font-weight: bold; letter-spacing: 10px; text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; border: 2px dashed #e5e7eb; }
-                .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; }
-                .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
-              </style>
-            </head>
-            <body>
-              <div class="header">
-                <h1>${fromName}</h1>
-                <p>Password Reset Request</p>
-              </div>
-              <div class="content">
-                <h2>Hello,</h2>
-                <p>You recently requested to reset your password for your ${fromName} account.</p>
-                
-                <div class="reset-code">${otp}</div>
-                
-                <p>Enter this code on the password reset page to set a new password.</p>
-                
-                <div class="warning">
-                  <p><strong>⚠️ Security Notice:</strong></p>
-                  <p>This code will expire in <strong>10 minutes</strong>.</p>
-                  <p>If you didn't request a password reset, please ignore this email or contact support if you're concerned.</p>
-                </div>
-                
-                <p>Best regards,<br><strong>${fromName} Team</strong></p>
-              </div>
-              <div class="footer">
-                <p>This is an automated message, please do not reply.</p>
-                <p>&copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.</p>
-              </div>
-            </body>
-            </html>
-          `,
-        });
+    // if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    //   try {
+    //     await transporter.sendMail({
+    //       from: `"${fromName}" <${fromEmail}>`,
+    //       to: email,
+    //       subject: `Password Reset Code - ${fromName}`,
+    //       text: `
+    //         You requested to reset your password.
 
-        console.log(`✅ Reset email sent to ${email}`);
-      } catch (emailError) {
-        console.error("Email sending failed:", emailError.message);
-        // Continue, OTP is logged for manual verification
-      }
+    //         Your password reset code is: ${otp}
+
+    //         This code will expire in 10 minutes.
+
+    //         If you didn't request this, please ignore this email.
+
+    //         Best regards,
+    //         ${fromName} Team
+    //       `,
+    //       html: `
+    //         <!DOCTYPE html>
+    //         <html>
+    //         <head>
+    //           <meta charset="utf-8">
+    //           <style>
+    //             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
+    //             .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; text-align: center; color: white; }
+    //             .content { padding: 30px; background: #f9fafb; }
+    //             .reset-code { font-size: 32px; font-weight: bold; letter-spacing: 10px; text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; border: 2px dashed #e5e7eb; }
+    //             .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; }
+    //             .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
+    //           </style>
+    //         </head>
+    //         <body>
+    //           <div class="header">
+    //             <h1>${fromName}</h1>
+    //             <p>Password Reset Request</p>
+    //           </div>
+    //           <div class="content">
+    //             <h2>Hello,</h2>
+    //             <p>You recently requested to reset your password for your ${fromName} account.</p>
+
+    //             <div class="reset-code">${otp}</div>
+
+    //             <p>Enter this code on the password reset page to set a new password.</p>
+
+    //             <div class="warning">
+    //               <p><strong>⚠️ Security Notice:</strong></p>
+    //               <p>This code will expire in <strong>10 minutes</strong>.</p>
+    //               <p>If you didn't request a password reset, please ignore this email or contact support if you're concerned.</p>
+    //             </div>
+
+    //             <p>Best regards,<br><strong>${fromName} Team</strong></p>
+    //           </div>
+    //           <div class="footer">
+    //             <p>This is an automated message, please do not reply.</p>
+    //             <p>&copy; ${new Date().getFullYear()} ${fromName}. All rights reserved.</p>
+    //           </div>
+    //         </body>
+    //         </html>
+    //       `,
+    //     });
+
+    //     console.log(`✅ Reset email sent to ${email}`);
+    //   } catch (emailError) {
+    //     console.error("Email sending failed:", emailError.message);
+    //     // Continue, OTP is logged for manual verification
+    //   }
+    // }
+
+    // // For development or if email fails
+    // console.log(`🔐 Reset code for ${email}: ${otp}`);
+
+    // res.json({
+    //   success: true,
+    //   message: "Reset code sent to your email",
+    //   email: email,
+    //   otp: process.env.NODE_ENV === "development" ? otp : undefined,
+    // });
+    // ✅ 6. Send OTP via Resend
+    const emailResult = await sendOtpEmail(email, otp, "reset");
+
+    // Untuk development atau jika Resend gagal
+    if (!emailResult.success || process.env.NODE_ENV === "development") {
+      console.log(`🔐 [DEV] Reset code for ${email}: ${otp}`);
+
+      return res.json({
+        success: true,
+        message: "Reset code generated. Check logs for code.",
+        email: email,
+        otp: otp, // Kirim OTP untuk development
+        simulated: !emailResult.success,
+        emailSent: emailResult.success,
+      });
     }
 
-    // For development or if email fails
-    console.log(`🔐 Reset code for ${email}: ${otp}`);
-
+    // Jika email berhasil dikirim
     res.json({
       success: true,
       message: "Reset code sent to your email",
       email: email,
-      otp: process.env.NODE_ENV === "development" ? otp : undefined,
+      emailSent: true,
     });
   } catch (error) {
     console.error("Forgot password error:", error);
